@@ -1,3 +1,6 @@
+Site url :- https://quiz-master-ap35.onrender.com
+
+
 # QuizMaster — Teacher-Student Examination & Quiz Management System
 
 A lightweight, production-ready educational SaaS mini-project built with **HTML5, Modern CSS, and Vanilla JavaScript**, powered by **Supabase PostgreSQL & Supabase Auth** with robust **Row Level Security (RLS)**.
