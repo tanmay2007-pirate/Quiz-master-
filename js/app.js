@@ -342,7 +342,6 @@ async function switchTeacherTab(tabName) {
   document.getElementById("pane-teacher-classes").style.display = "none";
   document.getElementById("pane-teacher-builder").style.display = "none";
   document.getElementById("pane-teacher-results").style.display = "none";
-  document.getElementById("pane-teacher-settings").style.display = "none";
 
   // Show selected pane and load its data
   if (tabName === "overview") {
@@ -362,9 +361,6 @@ async function switchTeacherTab(tabName) {
     contextBadge.textContent = "/ RESULTS";
     document.getElementById("pane-teacher-results").style.display = "block";
     await refreshTeacherResults();
-  } else if (tabName === "settings") {
-    contextBadge.textContent = "/ SETTINGS";
-    document.getElementById("pane-teacher-settings").style.display = "block";
   }
 }
 

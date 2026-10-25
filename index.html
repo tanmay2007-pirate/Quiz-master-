@@ -145,9 +145,6 @@
       <button class="nav-link" data-teacher-tab="results">
         <span>📈</span> Results & Grading
       </button>
-      <button class="nav-link" data-teacher-tab="settings">
-        <span>⚙️</span> Database & Setup
-      </button>
     </aside>
 
     <!-- Main Workspace Content -->
@@ -371,34 +368,6 @@
         </div>
       </section>
 
-      <!-- Tab 5: Settings & Setup -->
-      <section id="pane-teacher-settings" style="display: none;">
-        <div class="page-header">
-          <div>
-            <h1 class="page-title">Settings & Database Setup</h1>
-            <p class="page-subtitle">Supabase project status, SQL initialization & teacher promotion</p>
-          </div>
-        </div>
-
-        <div class="content-card">
-          <h2 class="card-title">Supabase Database Connection</h2>
-          <p style="margin-bottom: 14px; font-size: 0.925rem;">
-            Ensure you have run <code>supabase/schema.sql</code> in your Supabase SQL Editor once.
-          </p>
-          <div class="alert alert-info">
-            <span>Connected to: <strong>https://zrulwcmhdgidgdjcvler.supabase.co</strong></span>
-          </div>
-
-          <h3 style="font-size: 1rem; margin: 20px 0 8px;">Teacher Account Signup</h3>
-          <p style="font-size: 0.875rem; color: var(--text-muted); margin-bottom: 8px;">
-            Select Teacher on the signup form and enter the private invitation code. Existing accounts can still be promoted manually:
-          </p>
-          <pre style="background: var(--bg-subtle); padding: 14px; border-radius: var(--radius-sm); font-size: 0.85rem; overflow-x: auto; border: 1px solid var(--border-color);">
-UPDATE public.profiles
-SET role = 'teacher'
-WHERE id = (SELECT id FROM auth.users WHERE email = 'YOUR_EMAIL@example.com');</pre>
-        </div>
-      </section>
     </main>
   </div>
 
