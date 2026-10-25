@@ -171,6 +171,37 @@ RETURNS boolean AS $$
   );
 $$ LANGUAGE sql SECURITY DEFINER STABLE;
 
+-- RPC: Create a class for the authenticated teacher
+CREATE OR REPLACE FUNCTION public.create_teacher_class(
+  p_name TEXT,
+  p_join_code TEXT
+)
+RETURNS public.classes
+AS $$
+DECLARE
+  created_class public.classes;
+BEGIN
+  IF NOT public.is_teacher() THEN
+    RAISE EXCEPTION 'Only teacher accounts can create classes.';
+  END IF;
+
+  IF NULLIF(TRIM(p_name), '') IS NULL THEN
+    RAISE EXCEPTION 'Class name is required.';
+  END IF;
+
+  IF NULLIF(TRIM(p_join_code), '') IS NULL THEN
+    RAISE EXCEPTION 'Join code is required.';
+  END IF;
+
+  INSERT INTO public.classes (teacher_id, name, join_code)
+  VALUES (auth.uid(), TRIM(p_name), UPPER(TRIM(p_join_code)))
+  RETURNING * INTO created_class;
+
+  RETURN created_class;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = public;
+
 -- RPC: Join class using join_code
 CREATE OR REPLACE FUNCTION public.join_class(code TEXT)
 RETURNS jsonb AS $$

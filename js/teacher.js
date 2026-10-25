@@ -130,22 +130,18 @@ export async function loadTeacherClasses(teacherId) {
 export async function createClass(teacherId, name, customCode = "") {
   if (!supabase) throw new Error("Supabase is not connected.");
 
+  const cleanName = name.trim();
+  if (!cleanName) throw new Error("Class name is required.");
+
   // Generate a random 6-character code if not provided
   const joinCode = customCode.trim()
     ? customCode.trim().toUpperCase()
     : Math.random().toString(36).substring(2, 8).toUpperCase();
 
-  const { data, error } = await supabase
-    .from("classes")
-    .insert([
-      {
-        teacher_id: teacherId,
-        name: name.trim(),
-        join_code: joinCode,
-      },
-    ])
-    .select()
-    .single();
+  const { data, error } = await supabase.rpc("create_teacher_class", {
+    p_name: cleanName,
+    p_join_code: joinCode,
+  });
 
   if (error) throw error;
   return data;
@@ -493,4 +489,3 @@ export async function releaseExamResults(examId, teacherId) {
   if (error) throw error;
   return data;
 }
-

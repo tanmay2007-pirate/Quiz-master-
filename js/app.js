@@ -476,8 +476,9 @@ document.getElementById("form-create-class")?.addEventListener("submit", async (
     alert(`Class "${name}" created successfully!`);
     document.getElementById("form-create-class").reset();
     await refreshTeacherClasses();
+    await prepareBuilderClassDropdown();
   } catch (err) {
-    alert("Failed to create class: " + err.message);
+    alert("Failed to create class: " + (err.message || "Unknown database error."));
   } finally {
     submitBtn.disabled = false;
   }
