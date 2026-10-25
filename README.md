@@ -87,9 +87,9 @@ The project is pre-configured to connect to your Supabase project:
 2. For testing convenience, you can disable "Confirm email" so test users can log in immediately upon sign-up.
 
 ### Step 3: Create Teacher & Student Accounts
-1. In the app, switch to **Create Account** and register two accounts (e.g., `teacher@example.com` and `student@example.com`).
-2. Public sign-ups automatically receive the **Student** role.
-3. To promote your teacher account, run this query in the **Supabase SQL Editor**:
+1. In the app, switch to **Create Account** and choose either **Teacher** or **Student**.
+2. Teacher sign-ups require the private invitation code configured in `supabase/schema.sql`; student sign-ups do not require a code.
+3. Existing accounts can still be promoted manually with this query in the **Supabase SQL Editor**:
    ```sql
    UPDATE public.profiles
    SET role = 'teacher'
@@ -200,4 +200,3 @@ To run the automated test suite for the quiz engine:
 node tests/quizEngine.test.js
 ```
 All 19 test assertions will run and report status in the terminal.
-

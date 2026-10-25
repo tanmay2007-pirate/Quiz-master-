@@ -12,9 +12,13 @@ import { supabase } from "./supabaseClient.js";
  * Signs up a new student account.
  * Note: By security requirement, all public sign-ups default to 'student'.
  */
-export async function signUpStudent(email, password, displayName) {
+export async function signUpStudent(email, password, displayName, role = "student", invitationCode = "") {
   if (!supabase) {
     throw new Error("Supabase client is not initialized.");
+  }
+
+  if (!["student", "teacher"].includes(role)) {
+    throw new Error("Invalid account type.");
   }
 
   // 1. Trigger Supabase Auth sign-up
@@ -24,6 +28,8 @@ export async function signUpStudent(email, password, displayName) {
     options: {
       data: {
         display_name: displayName || email.split("@")[0],
+        requested_role: role,
+        teacher_invitation_code: role === "teacher" ? invitationCode : null,
       },
     },
   });
@@ -114,4 +120,3 @@ export function onAuthStateChange(callback) {
     callback(event, session);
   });
 }
-

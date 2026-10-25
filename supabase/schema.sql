@@ -116,11 +116,29 @@ CREATE INDEX IF NOT EXISTS idx_attempts_student ON public.attempts(student_id);
 CREATE INDEX IF NOT EXISTS idx_answers_attempt ON public.answers(attempt_id);
 
 -- =====================================================================
--- 4. PROFILE TRIGGER (ALWAYS DEFAULT TO 'student')
+-- 4. PROFILE TRIGGER
+-- Public sign-up defaults to student. Teacher sign-up requires the
+-- private invitation code checked below.
 -- =====================================================================
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS trigger AS $$
+DECLARE
+  requested_role TEXT;
+  invitation_code TEXT;
+  assigned_role TEXT;
 BEGIN
+  requested_role := COALESCE(new.raw_user_meta_data->>'requested_role', 'student');
+  invitation_code := new.raw_user_meta_data->>'teacher_invitation_code';
+
+  IF requested_role = 'teacher' AND invitation_code IS DISTINCT FROM 'Quiz-master' THEN
+    RAISE EXCEPTION 'A valid teacher invitation code is required.';
+  END IF;
+
+  assigned_role := CASE
+    WHEN requested_role = 'teacher' AND invitation_code = 'Quiz-master' THEN 'teacher'
+    ELSE 'student'
+  END;
+
   INSERT INTO public.profiles (id, display_name, role)
   VALUES (
     new.id,
@@ -128,7 +146,7 @@ BEGIN
       new.raw_user_meta_data->>'display_name',
       split_part(new.email, '@', 1)
     ),
-    'student' -- Rule: public sign-up MUST ALWAYS default to student
+    assigned_role
   )
   ON CONFLICT (id) DO NOTHING;
   RETURN new;

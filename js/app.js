@@ -181,6 +181,9 @@ function setupAuthTabs() {
   const formSignIn = document.getElementById("form-signin");
   const formSignUp = document.getElementById("form-signup");
   const alertBox = document.getElementById("auth-alert-box");
+  const signupRole = document.getElementById("signup-role");
+  const teacherInvitationGroup = document.getElementById("teacher-invitation-group");
+  const teacherInvitationInput = document.getElementById("signup-teacher-code");
 
   tabSignIn.addEventListener("click", () => {
     tabSignIn.classList.add("active");
@@ -196,6 +199,13 @@ function setupAuthTabs() {
     formSignUp.style.display = "block";
     formSignIn.style.display = "none";
     alertBox.innerHTML = "";
+  });
+
+  signupRole?.addEventListener("change", () => {
+    const isTeacher = signupRole.value === "teacher";
+    teacherInvitationGroup.style.display = isTeacher ? "block" : "none";
+    teacherInvitationInput.required = isTeacher;
+    if (!isTeacher) teacherInvitationInput.value = "";
   });
 
   // Demo buttons
@@ -266,14 +276,24 @@ document.getElementById("form-signup")?.addEventListener("submit", async (e) => 
   const name = document.getElementById("signup-name").value.trim();
   const email = document.getElementById("signup-email").value.trim();
   const password = document.getElementById("signup-password").value;
+  const role = document.getElementById("signup-role").value;
+  const invitationCode = document.getElementById("signup-teacher-code").value.trim();
   const submitBtn = document.getElementById("btn-submit-signup");
 
   try {
     submitBtn.disabled = true;
     submitBtn.textContent = "Creating Account...";
 
-    await signUpStudent(email, password, name);
-    showAuthAlert("Account created successfully! You can now sign in.", "success");
+    const signupResult = await signUpStudent(email, password, name, role, invitationCode);
+    if (signupResult.session) {
+      await loadSessionUser();
+      return;
+    }
+
+    showAuthAlert(
+      "Account created successfully. Confirm your email, then sign in to open your workspace.",
+      "success"
+    );
 
     // Switch back to sign in tab
     document.getElementById("tab-btn-signin").click();
@@ -282,7 +302,7 @@ document.getElementById("form-signup")?.addEventListener("submit", async (e) => 
     showAuthAlert(err.message || "Sign-up failed.", "error");
   } finally {
     submitBtn.disabled = false;
-    submitBtn.textContent = "Create Student Account";
+    submitBtn.textContent = "Create Account";
   }
 });
 
@@ -1420,4 +1440,3 @@ function escapeHtml(str) {
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
 }
-
