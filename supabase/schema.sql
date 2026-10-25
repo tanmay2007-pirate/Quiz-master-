@@ -171,6 +171,42 @@ RETURNS boolean AS $$
   );
 $$ LANGUAGE sql SECURITY DEFINER STABLE;
 
+CREATE OR REPLACE FUNCTION public.is_class_member(
+  p_class_id UUID,
+  p_student_id UUID DEFAULT auth.uid()
+)
+RETURNS boolean
+LANGUAGE sql
+SECURITY DEFINER
+STABLE
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1
+    FROM public.class_members
+    WHERE class_id = p_class_id
+      AND student_id = p_student_id
+  );
+$$;
+
+CREATE OR REPLACE FUNCTION public.is_class_teacher(
+  p_class_id UUID,
+  p_teacher_id UUID DEFAULT auth.uid()
+)
+RETURNS boolean
+LANGUAGE sql
+SECURITY DEFINER
+STABLE
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1
+    FROM public.classes
+    WHERE id = p_class_id
+      AND teacher_id = p_teacher_id
+  );
+$$;
+
 -- RPC: Create a class for the authenticated teacher
 CREATE OR REPLACE FUNCTION public.create_teacher_class(
   p_name TEXT,
@@ -362,13 +398,7 @@ WITH CHECK (teacher_id = auth.uid());
 CREATE POLICY "Students can view classes they belong to"
 ON public.classes FOR SELECT
 TO authenticated
-USING (
-  EXISTS (
-    SELECT 1 FROM public.class_members
-    WHERE class_members.class_id = classes.id
-      AND class_members.student_id = auth.uid()
-  )
-);
+USING (public.is_class_member(id));
 
 -- ---------------------------------------------------------------------
 -- RLS: class_members
@@ -381,13 +411,7 @@ USING (student_id = auth.uid());
 CREATE POLICY "Teachers can view members in their classes"
 ON public.class_members FOR SELECT
 TO authenticated
-USING (
-  EXISTS (
-    SELECT 1 FROM public.classes
-    WHERE classes.id = class_members.class_id
-      AND classes.teacher_id = auth.uid()
-  )
-);
+USING (public.is_class_teacher(class_id));
 
 CREATE POLICY "Students can insert their own class membership"
 ON public.class_members FOR INSERT
@@ -408,11 +432,7 @@ ON public.exams FOR SELECT
 TO authenticated
 USING (
   status IN ('published', 'closed')
-  AND EXISTS (
-    SELECT 1 FROM public.class_members
-    WHERE class_members.class_id = exams.class_id
-      AND class_members.student_id = auth.uid()
-  )
+  AND public.is_class_member(class_id)
 );
 
 -- ---------------------------------------------------------------------
@@ -463,11 +483,11 @@ TO authenticated
 WITH CHECK (
   student_id = auth.uid()
   AND EXISTS (
-    SELECT 1 FROM public.exams e
-    JOIN public.class_members cm ON cm.class_id = e.class_id
+    SELECT 1
+    FROM public.exams e
     WHERE e.id = attempts.exam_id
-      AND cm.student_id = auth.uid()
       AND e.status = 'published'
+      AND public.is_class_member(e.class_id)
   )
 );
 
