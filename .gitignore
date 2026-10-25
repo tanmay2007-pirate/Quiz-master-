@@ -1,0 +1,23 @@
+# Dependencies and package-manager files
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Local environment and editor files
+.env
+.env.*
+!.env.example
+.vscode/
+.idea/
+
+# Test and build output
+coverage/
+dist/
+build/
+*.log
+
+# OS metadata
+Thumbs.db
+Desktop.ini

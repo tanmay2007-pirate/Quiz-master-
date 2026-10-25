@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QuizMaster — Teacher & Student Quiz Management System</title>
+  
+  <!-- Main Stylesheet -->
+  <link rel="stylesheet" href="css/style.css">
+  
+  <!-- Official Supabase JavaScript Client (via CDN) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+  <!-- ================================================================= -->
+  <!-- 1. TOP HEADER (BRAND + ACTIVE CONTEXT + USER BAR)                 -->
+  <!-- ================================================================= -->
+  <header class="top-header" role="banner">
+    <div class="brand-wrapper">
+      <div class="brand-logo">
+        <span class="brand-icon">Q</span>
+        <span>QUIZMASTER</span>
+      </div>
+      <span class="brand-slash" id="context-badge">/ LOGIN</span>
+    </div>
+
+    <div class="user-nav-actions" id="header-user-actions" style="display: none;">
+      <div class="user-badge">
+        <span id="user-display-name">User</span>
+        <span class="role-pill" id="user-role-pill">ROLE</span>
+      </div>
+      <button class="btn btn-secondary btn-sm" id="btn-sign-out">Sign out</button>
+    </div>
+  </header>
+
+  <!-- ================================================================= -->
+  <!-- 2. AUTHENTICATION VIEW (TEACHER & STUDENT LOGIN / REGISTER)      -->
+  <!-- ================================================================= -->
+  <main id="view-auth" class="auth-wrapper">
+    <div class="auth-card">
+      <div class="auth-tabs" role="tablist">
+        <button class="auth-tab active" id="tab-btn-signin" role="tab" aria-selected="true">Sign In</button>
+        <button class="auth-tab" id="tab-btn-signup" role="tab" aria-selected="false">Create Account</button>
+      </div>
+
+      <div id="auth-alert-box"></div>
+
+      <!-- Sign In Form -->
+      <form id="form-signin" autocomplete="on">
+        <div class="form-group">
+          <label for="signin-portal-type">Portal Type</label>
+          <select id="signin-portal-type" class="form-control">
+            <option value="student">Student Portal</option>
+            <option value="teacher">Teacher Portal</option>
+          </select>
+          <div class="form-help">Choose portal to enter your designated workspace.</div>
+        </div>
+
+        <div class="form-group">
+          <label for="signin-email">Email Address</label>
+          <input type="email" id="signin-email" class="form-control" placeholder="you@institution.edu" required>
+        </div>
+
+        <div class="form-group">
+          <label for="signin-password">Password</label>
+          <input type="password" id="signin-password" class="form-control" placeholder="••••••••" required>
+        </div>
+
+        <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 10px;" id="btn-submit-signin">
+          Sign In to Workspace
+        </button>
+
+        <div style="margin-top: 20px; padding-top: 16px; border-top: 1px dashed var(--border-color);">
+          <div style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted); margin-bottom: 8px;">
+            DEMO QUICK ACCESS
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <button type="button" class="btn btn-secondary btn-sm" style="flex: 1;" id="btn-fill-demo-teacher">
+              Fill Teacher Demo
+            </button>
+            <button type="button" class="btn btn-secondary btn-sm" style="flex: 1;" id="btn-fill-demo-student">
+              Fill Student Demo
+            </button>
+          </div>
+        </div>
+      </form>
+
+      <!-- Student Sign Up Form -->
+      <form id="form-signup" style="display: none;" autocomplete="on">
+        <div class="alert alert-info">
+          <span>Public accounts default to <strong>Student</strong> role. Teacher accounts are promoted in Supabase SQL editor.</span>
+        </div>
+
+        <div class="form-group">
+          <label for="signup-name">Full Name</label>
+          <input type="text" id="signup-name" class="form-control" placeholder="e.g. Alex Johnson" required>
+        </div>
+
+        <div class="form-group">
+          <label for="signup-email">Email Address</label>
+          <input type="email" id="signup-email" class="form-control" placeholder="alex@institution.edu" required>
+        </div>
+
+        <div class="form-group">
+          <label for="signup-password">Create Password</label>
+          <input type="password" id="signup-password" class="form-control" placeholder="Minimum 6 characters" minlength="6" required>
+        </div>
+
+        <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 10px;" id="btn-submit-signup">
+          Create Student Account
+        </button>
+      </form>
+    </div>
+  </main>
+
+  <!-- ================================================================= -->
+  <!-- 3. TEACHER WORKSPACE VIEW                                         -->
+  <!-- ================================================================= -->
+  <div id="view-teacher" class="app-container" style="display: none;">
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+      <div class="sidebar-heading">Workspace</div>
+      <button class="nav-link active" data-teacher-tab="overview">
+        <span>📊</span> Overview
+      </button>
+      <button class="nav-link" data-teacher-tab="classes">
+        <span>🏫</span> My Classes
+      </button>
+      <button class="nav-link" data-teacher-tab="builder">
+        <span>📝</span> Exam Builder
+      </button>
+      <button class="nav-link" data-teacher-tab="results">
+        <span>📈</span> Results & Grading
+      </button>
+      <button class="nav-link" data-teacher-tab="settings">
+        <span>⚙️</span> Database & Setup
+      </button>
+    </aside>
+
+    <!-- Main Workspace Content -->
+    <main class="main-content">
+      <!-- Alerts container -->
+      <div id="teacher-alert-box"></div>
+
+      <!-- Tab 1: Overview -->
+      <section id="pane-teacher-overview">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Teacher Dashboard</h1>
+            <p class="page-subtitle">Manage classes, exams and submissions</p>
+          </div>
+          <button class="btn btn-primary" id="btn-new-assessment-top">
+            <span>+</span> New Assessment
+          </button>
+        </div>
+
+        <!-- Stat Cards -->
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-label">Active Exams</div>
+            <div class="stat-value" id="stat-active-exams">00</div>
+            <div class="stat-caption">Published assessments</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Submissions</div>
+            <div class="stat-value" id="stat-submissions">00</div>
+            <div class="stat-caption">Total student attempts</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Avg. Score</div>
+            <div class="stat-value" id="stat-avg-score">0%</div>
+            <div class="stat-caption">Across all submissions</div>
+          </div>
+        </div>
+
+        <!-- Recent Activity List -->
+        <div class="content-card">
+          <h2 class="card-title">Recent Assessments</h2>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Assessment Title</th>
+                  <th>Status</th>
+                  <th>Duration</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="teacher-recent-exams-table">
+                <tr><td colspan="4" style="text-align: center; color: var(--text-muted);">Loading assessments...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Tab 2: My Classes -->
+      <section id="pane-teacher-classes" style="display: none;">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">My Classes</h1>
+            <p class="page-subtitle">Create classes and share join codes with students</p>
+          </div>
+        </div>
+
+        <!-- Create Class Card -->
+        <div class="content-card" style="max-width: 650px;">
+          <h2 class="card-title">Create New Class</h2>
+          <form id="form-create-class">
+            <div class="form-group">
+              <label for="class-name">Class Name</label>
+              <input type="text" id="class-name" class="form-control" placeholder="e.g. CS101: Web Development" required>
+            </div>
+            <div class="form-group">
+              <label for="class-code">Custom Join Code (Optional)</label>
+              <input type="text" id="class-code" class="form-control" placeholder="e.g. CS101A (Leave blank to auto-generate)">
+              <div class="form-help">Students enter this code to enroll and view your published exams.</div>
+            </div>
+            <button type="submit" class="btn btn-primary" id="btn-save-class">Create Class</button>
+          </form>
+        </div>
+
+        <!-- Classes List -->
+        <div class="content-card">
+          <h2 class="card-title">Active Classes</h2>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Class Name</th>
+                  <th>Join Code</th>
+                  <th>Students</th>
+                  <th>Created Date</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="teacher-classes-table">
+                <tr><td colspan="5" style="text-align: center; color: var(--text-muted);">Loading classes...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Tab 3: Exam Builder -->
+      <section id="pane-teacher-builder" style="display: none;">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Create assessment</h1>
+            <p class="page-subtitle">Build a paper with multiple question types</p>
+          </div>
+          <div style="display: flex; gap: 10px;">
+            <button class="btn btn-secondary" id="btn-save-draft">Save Draft</button>
+            <button class="btn btn-primary" id="btn-publish-exam">Publish Exam</button>
+          </div>
+        </div>
+
+        <!-- Exam Configuration Card -->
+        <div class="content-card">
+          <h2 class="card-title">Assessment Settings</h2>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;">
+            <div class="form-group">
+              <label for="builder-title">Exam Title *</label>
+              <input type="text" id="builder-title" class="form-control" placeholder="e.g. JavaScript Essentials Quiz" required>
+            </div>
+            <div class="form-group">
+              <label for="builder-class">Assigned Class *</label>
+              <select id="builder-class" class="form-control" required>
+                <option value="">Select a class...</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="builder-duration">Duration (Minutes) *</label>
+              <input type="number" id="builder-duration" class="form-control" min="1" max="300" value="30" required>
+            </div>
+            <div class="form-group">
+              <label for="builder-status">Status</label>
+              <select id="builder-status" class="form-control">
+                <option value="draft">Draft</option>
+                <option value="published">Published</option>
+                <option value="closed">Closed</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group" style="margin-bottom: 0;">
+            <label for="builder-instructions">Instructions for Students</label>
+            <textarea id="builder-instructions" class="form-control" rows="2" placeholder="e.g. Attempt all questions. Objective questions are auto-graded."></textarea>
+          </div>
+        </div>
+
+        <!-- Builder Stats -->
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-label">Total Questions</div>
+            <div class="stat-value" id="builder-stat-q-count">0</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Total Marks</div>
+            <div class="stat-value" id="builder-stat-marks">0</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Question Types</div>
+            <div class="stat-value" id="builder-stat-types" style="font-size: 1.25rem; font-weight: 600;">MCQ, T/F, Short, Desc</div>
+          </div>
+        </div>
+
+        <!-- Questions in this paper -->
+        <div class="content-card">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <h2 class="card-title" style="margin-bottom: 0;">Questions in this paper</h2>
+            <button class="btn btn-secondary btn-sm" id="btn-open-add-q-modal">
+              <span>+</span> Add Question
+            </button>
+          </div>
+
+          <div id="builder-questions-list" style="display: flex; flex-direction: column; gap: 12px;">
+            <div style="text-align: center; padding: 24px; color: var(--text-muted); background: var(--bg-subtle); border-radius: var(--radius-sm);">
+              No questions added yet. Click "+ Add Question" to start building your paper.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Tab 4: Results & Grading -->
+      <section id="pane-teacher-results" style="display: none;">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Exam results</h1>
+            <p class="page-subtitle">Review student and question-level performance</p>
+          </div>
+          <div>
+            <select id="filter-results-exam" class="form-control" style="min-width: 240px;">
+              <option value="">All Exams</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Submissions Table -->
+        <div class="content-card">
+          <h2 class="card-title">Student Submissions</h2>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Student</th>
+                  <th>Exam Title</th>
+                  <th>Score / Percentage</th>
+                  <th>Status</th>
+                  <th>Submitted At</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="teacher-submissions-table">
+                <tr><td colspan="6" style="text-align: center; color: var(--text-muted);">No submissions found.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Tab 5: Settings & Setup -->
+      <section id="pane-teacher-settings" style="display: none;">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Settings & Database Setup</h1>
+            <p class="page-subtitle">Supabase project status, SQL initialization & teacher promotion</p>
+          </div>
+        </div>
+
+        <div class="content-card">
+          <h2 class="card-title">Supabase Database Connection</h2>
+          <p style="margin-bottom: 14px; font-size: 0.925rem;">
+            Ensure you have run <code>supabase/schema.sql</code> in your Supabase SQL Editor once.
+          </p>
+          <div class="alert alert-info">
+            <span>Connected to: <strong>https://zrulwcmhdgidgdjcvler.supabase.co</strong></span>
+          </div>
+
+          <h3 style="font-size: 1rem; margin: 20px 0 8px;">Promoting Teacher Accounts (SQL)</h3>
+          <p style="font-size: 0.875rem; color: var(--text-muted); margin-bottom: 8px;">
+            Public sign-ups default to Student role. Run this in your Supabase SQL Editor to make any account a Teacher:
+          </p>
+          <pre style="background: var(--bg-subtle); padding: 14px; border-radius: var(--radius-sm); font-size: 0.85rem; overflow-x: auto; border: 1px solid var(--border-color);">
+UPDATE public.profiles
+SET role = 'teacher'
+WHERE id = (SELECT id FROM auth.users WHERE email = 'YOUR_EMAIL@example.com');</pre>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- ================================================================= -->
+  <!-- 4. STUDENT WORKSPACE VIEW                                         -->
+  <!-- ================================================================= -->
+  <div id="view-student" class="app-container" style="display: none;">
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+      <div class="sidebar-heading">Workspace</div>
+      <button class="nav-link active" data-student-tab="exams">
+        <span>📖</span> Available Exams
+      </button>
+      <button class="nav-link" data-student-tab="join">
+        <span>🔑</span> Join a Class
+      </button>
+      <button class="nav-link" data-student-tab="results">
+        <span>🏆</span> My Results
+      </button>
+    </aside>
+
+    <!-- Main Workspace Content -->
+    <main class="main-content">
+      <div id="student-alert-box"></div>
+
+      <!-- Tab 1: Available Exams -->
+      <section id="pane-student-exams">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Assigned Assessments</h1>
+            <p class="page-subtitle">Select an exam to read instructions and begin</p>
+          </div>
+        </div>
+
+        <div id="student-exams-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px;">
+          <div style="grid-column: 1 / -1; text-align: center; padding: 40px; color: var(--text-muted);">
+            Loading your assigned exams...
+          </div>
+        </div>
+      </section>
+
+      <!-- Tab 2: Join Class -->
+      <section id="pane-student-join" style="display: none;">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Join a Class</h1>
+            <p class="page-subtitle">Enter the unique join code given by your instructor</p>
+          </div>
+        </div>
+
+        <div class="content-card" style="max-width: 500px;">
+          <h2 class="card-title">Enroll in Class</h2>
+          <form id="form-student-join">
+            <div class="form-group">
+              <label for="input-join-code">Class Join Code</label>
+              <input type="text" id="input-join-code" class="form-control" placeholder="e.g. MATH101" required>
+              <div class="form-help">Ask your teacher for the 6-character code.</div>
+            </div>
+            <button type="submit" class="btn btn-primary" id="btn-join-class-submit">Join Class</button>
+          </form>
+        </div>
+
+        <div class="content-card" style="max-width: 500px;">
+          <h2 class="card-title">Enrolled Classes</h2>
+          <ul id="student-enrolled-classes-list" style="list-style: none; display: flex; flex-direction: column; gap: 8px;">
+            <li style="color: var(--text-muted);">Loading enrolled classes...</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- Tab 3: My Results -->
+      <section id="pane-student-results" style="display: none;">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">My Assessment Results</h1>
+            <p class="page-subtitle">View scores and feedback once released by your instructor</p>
+          </div>
+        </div>
+
+        <div class="content-card">
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Exam Title</th>
+                  <th>Submitted Date</th>
+                  <th>Status</th>
+                  <th>Score</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="student-results-table">
+                <tr><td colspan="5" style="text-align: center; color: var(--text-muted);">No exam attempts found.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- ================================================================= -->
+  <!-- 5. FOCUSED EXAM ATTEMPT SCREEN                                    -->
+  <!-- ================================================================= -->
+  <div id="view-attempt" class="attempt-screen" style="display: none;">
+    <!-- Header with title and countdown timer -->
+    <header class="attempt-header">
+      <div>
+        <h2 id="attempt-exam-title" style="font-size: 1.15rem; font-weight: 700;">Exam Title</h2>
+        <span id="attempt-q-progress" style="font-size: 0.85rem; color: var(--text-muted);">Question 1 of 5</span>
+      </div>
+
+      <div class="attempt-timer" id="attempt-timer-box">
+        <span>⏳</span>
+        <span id="attempt-timer-digits">00:00</span>
+      </div>
+    </header>
+
+    <div class="attempt-body">
+      <!-- Question Navigation Bar -->
+      <div class="question-nav-bar" id="attempt-nav-bar">
+        <!-- Dynamic numbered buttons -->
+      </div>
+
+      <!-- Question Card -->
+      <div class="question-card">
+        <div class="question-meta">
+          <span style="font-weight: 700; color: var(--primary);" id="attempt-q-number">Question 1</span>
+          <span class="badge badge-draft" id="attempt-q-marks">1 Mark</span>
+        </div>
+
+        <div class="question-prompt" id="attempt-q-prompt">
+          Question prompt goes here...
+        </div>
+
+        <!-- Dynamic Answer Controls -->
+        <div id="attempt-answer-controls">
+          <!-- Filled dynamically by JavaScript -->
+        </div>
+      </div>
+
+      <!-- Bottom action controls -->
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <button class="btn btn-secondary" id="btn-attempt-prev">← Previous</button>
+        <button class="btn btn-primary" id="btn-attempt-next">Next →</button>
+        <button class="btn btn-success" id="btn-attempt-submit">Submit Exam</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================================================================= -->
+  <!-- 6. MODALS                                                         -->
+  <!-- ================================================================= -->
+
+  <!-- Add / Edit Question Modal -->
+  <div id="modal-add-question" class="modal-overlay" style="display: none;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 style="font-size: 1.25rem; font-weight: 700;">Add Question</h2>
+        <button class="modal-close" data-close-modal="modal-add-question">&times;</button>
+      </div>
+
+      <form id="form-add-question">
+        <div class="form-group">
+          <label for="q-type">Question Type *</label>
+          <select id="q-type" class="form-control" required>
+            <option value="mcq">Single-choice MCQ</option>
+            <option value="true_false">True / False</option>
+            <option value="short_answer">Short Text Answer (Auto-graded)</option>
+            <option value="descriptive">Long Descriptive Answer (Manual Grading)</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="q-prompt">Question Prompt *</label>
+          <textarea id="q-prompt" class="form-control" rows="3" placeholder="Enter question text clearly..." required></textarea>
+        </div>
+
+        <div class="form-group">
+          <label for="q-marks">Marks *</label>
+          <input type="number" id="q-marks" class="form-control" min="1" max="100" value="1" required>
+        </div>
+
+        <!-- Dynamic Question Type Details Container -->
+        <div id="q-dynamic-type-fields">
+          <!-- Populated by JavaScript according to question type -->
+        </div>
+
+        <div class="form-group" style="margin-top: 14px;">
+          <label for="q-explanation">Explanation / Marking Guide (Optional)</label>
+          <textarea id="q-explanation" class="form-control" rows="2" placeholder="Will be revealed to student only after results are released."></textarea>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px;">
+          <button type="button" class="btn btn-secondary" data-close-modal="modal-add-question">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="btn-save-question-submit">Save Question</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Manual Grading Modal (Teacher) -->
+  <div id="modal-grading" class="modal-overlay" style="display: none;">
+    <div class="modal-content" style="max-width: 800px;">
+      <div class="modal-header">
+        <div>
+          <h2 style="font-size: 1.25rem; font-weight: 700;" id="grading-modal-title">Review & Grade Submission</h2>
+          <p style="font-size: 0.85rem; color: var(--text-muted);" id="grading-modal-student">Student Name</p>
+        </div>
+        <button class="modal-close" data-close-modal="modal-grading">&times;</button>
+      </div>
+
+      <div id="grading-questions-container" style="display: flex; flex-direction: column; gap: 16px; margin-bottom: 24px;">
+        <!-- Filled dynamically -->
+      </div>
+
+      <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border-color); padding-top: 16px;">
+        <div>
+          <span style="font-size: 0.9rem; color: var(--text-muted);">Calculated Score:</span>
+          <strong id="grading-modal-total-score" style="font-size: 1.15rem; margin-left: 6px;">0 / 0</strong>
+        </div>
+        <div style="display: flex; gap: 10px;">
+          <button type="button" class="btn btn-secondary" data-close-modal="modal-grading">Close</button>
+          <button type="button" class="btn btn-primary" id="btn-save-grades-submit">Save Grading</button>
+          <button type="button" class="btn btn-success" id="btn-release-results-action">Release Results to Student</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Student Result Review Modal -->
+  <div id="modal-student-review" class="modal-overlay" style="display: none;">
+    <div class="modal-content" style="max-width: 800px;">
+      <div class="modal-header">
+        <div>
+          <h2 style="font-size: 1.25rem; font-weight: 700;" id="student-review-modal-title">Exam Review</h2>
+          <p style="font-size: 0.85rem; color: var(--text-muted);" id="student-review-score-summary">Score: 0 / 0</p>
+        </div>
+        <button class="modal-close" data-close-modal="modal-student-review">&times;</button>
+      </div>
+
+      <div id="student-review-container" style="display: flex; flex-direction: column; gap: 16px;">
+        <!-- Filled dynamically -->
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; margin-top: 24px;">
+        <button type="button" class="btn btn-secondary" data-close-modal="modal-student-review">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Application Main Controller (ES Module) -->
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
+
