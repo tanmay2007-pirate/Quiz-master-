@@ -489,3 +489,16 @@ export async function releaseExamResults(examId, teacherId) {
   if (error) throw error;
   return data;
 }
+
+export async function releaseAllExamResults(teacherId) {
+  if (!supabase) throw new Error("Supabase is not connected.");
+
+  const { data, error } = await supabase
+    .from("exams")
+    .update({ results_released_at: new Date().toISOString() })
+    .eq("teacher_id", teacherId)
+    .select("id");
+
+  if (error) throw error;
+  return data || [];
+}

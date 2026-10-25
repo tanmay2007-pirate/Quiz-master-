@@ -35,6 +35,7 @@ import {
   loadAttemptForGrading,
   saveManualGrading,
   releaseExamResults,
+  releaseAllExamResults,
 } from "./teacher.js";
 import {
   activeAttempt,
@@ -670,8 +671,15 @@ window.openGradingModal = async (attemptId) => {
           : "<em>(No answer submitted)</em>";
         const isDescriptive = q.type === "descriptive";
 
+        const isAutoGraded = !isDescriptive;
+        const answerClass = item.isCorrect === true
+          ? "border: 1px solid #86efac; background: #f0fdf4;"
+          : item.isCorrect === false
+          ? "border: 1px solid #fca5a5; background: #fef2f2;"
+          : "border: 1px solid var(--border-color); background: var(--bg-surface);";
+
         return `
-          <div style="border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 16px; background: var(--bg-surface);">
+          <div style="${answerClass} border-radius: var(--radius-md); padding: 16px;">
             <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
               <span style="font-weight: 700; color: var(--primary);">Q${idx + 1} (${q.type.toUpperCase()})</span>
               <span class="badge badge-draft">Max Marks: ${q.marks}</span>
@@ -680,7 +688,7 @@ window.openGradingModal = async (attemptId) => {
               ${escapeHtml(q.prompt)}
             </div>
 
-            <div style="background: var(--bg-subtle); padding: 10px 14px; border-radius: var(--radius-sm); margin-bottom: 10px;">
+            <div style="padding: 10px 14px; border-radius: var(--radius-sm); margin-bottom: 10px;">
               <div style="font-size: 0.8rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Student Answer:</div>
               <div style="font-size: 0.925rem; margin-top: 4px;">${escapeHtml(studentAns)}</div>
             </div>
@@ -704,7 +712,8 @@ window.openGradingModal = async (attemptId) => {
                        min="0" 
                        max="${q.marks}" 
                        step="0.5" 
-                       value="${item.awardedMarks !== null ? item.awardedMarks : 0}">
+                       value="${item.awardedMarks !== null ? item.awardedMarks : 0}"
+                       ${isAutoGraded ? "readonly" : ""}>
               </div>
               <div style="flex: 1; min-width: 250px;">
                 <label style="font-size: 0.8rem; font-weight: 600; display: block; margin-bottom: 4px;">Teacher Feedback</label>
@@ -797,6 +806,22 @@ document.getElementById("btn-release-results-action")?.addEventListener("click",
     } catch (err) {
       alert("Failed to release results: " + err.message);
     }
+  }
+});
+
+document.getElementById("btn-release-all-results")?.addEventListener("click", async () => {
+  if (!confirm("Release results for all of your exams to every student?")) return;
+
+  const button = document.getElementById("btn-release-all-results");
+  try {
+    button.disabled = true;
+    await releaseAllExamResults(currentUser.id);
+    alert("All exam results have been released to students.");
+    await refreshTeacherResults();
+  } catch (err) {
+    alert("Failed to release all results: " + err.message);
+  } finally {
+    button.disabled = false;
   }
 });
 

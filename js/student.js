@@ -277,74 +277,24 @@ export async function submitExam(studentId, onAutoSubmitted = false) {
   const attemptId = activeAttempt.attemptId;
   const examId = activeAttempt.exam.id;
 
-  // 1. Fetch questions with answer keys ONLY on server/graded side to evaluate
-  // Fetch question metadata for grading
-  const { data: questionsWithKeys, error: keyErr } = await supabase
-    .from("questions")
-    .select("id, type, marks, answer_key")
-    .eq("exam_id", examId);
+  const answerPayload = activeAttempt.questions.map((q) => ({
+    question_id: q.id,
+    answer: activeAttempt.answers[q.id] !== undefined ? activeAttempt.answers[q.id] : null,
+  }));
 
-  const questionKeyMap = new Map();
-  (questionsWithKeys || []).forEach((q) => questionKeyMap.set(q.id, q));
+  const { data: gradingResult, error: gradingError } = await supabase.rpc("grade_exam_attempt", {
+    p_attempt_id: attemptId,
+    p_answers: answerPayload,
+  });
 
-  let totalScore = 0;
-  let hasDescriptive = false;
-  const answersToInsert = [];
+  if (gradingError) throw gradingError;
 
-  for (const q of activeAttempt.questions) {
-    const studentAnswer = activeAttempt.answers[q.id];
-    const fullQuestion = questionKeyMap.get(q.id) || q;
-
-    // Run pure auto-grading logic from quizEngine
-    const gradeResult = gradeObjectiveQuestion(fullQuestion, studentAnswer);
-
-    if (gradeResult.isPending) {
-      hasDescriptive = true;
-    } else {
-      totalScore += gradeResult.awardedMarks;
-    }
-
-    answersToInsert.push({
-      attempt_id: attemptId,
-      question_id: q.id,
-      answer: studentAnswer !== undefined ? studentAnswer : null,
-      awarded_marks: gradeResult.awardedMarks,
-      is_correct: gradeResult.isCorrect,
-      feedback: null,
-    });
-  }
-
-  // 2. Save answers to database
-  if (answersToInsert.length > 0) {
-    // Delete previous draft answers if any
-    await supabase.from("answers").delete().eq("attempt_id", attemptId);
-
-    const { error: ansInsertErr } = await supabase.from("answers").insert(answersToInsert);
-    if (ansInsertErr) console.warn("Error inserting answers:", ansInsertErr);
-  }
-
-  // 3. Mark attempt as submitted or graded
-  // If no descriptive questions, status can be 'graded' immediately;
-  // If has descriptive questions, status is 'submitted' awaiting teacher review.
-  const finalStatus = hasDescriptive ? "submitted" : "graded";
-
-  const { error: attUpdateErr } = await supabase
-    .from("attempts")
-    .update({
-      status: finalStatus,
-      submitted_at: new Date().toISOString(),
-      score: totalScore,
-      graded_at: hasDescriptive ? null : new Date().toISOString(),
-    })
-    .eq("id", attemptId)
-    .eq("student_id", studentId);
-
-  if (attUpdateErr) throw attUpdateErr;
+  const result = Array.isArray(gradingResult) ? gradingResult[0] : gradingResult;
 
   return {
     success: true,
-    status: finalStatus,
-    score: totalScore,
+    status: result.status,
+    score: result.score,
     autoSubmitted: onAutoSubmitted,
   };
 }
@@ -446,4 +396,3 @@ export async function loadStudentAttemptReview(attemptId, studentId) {
     reviewItems,
   };
 }
-

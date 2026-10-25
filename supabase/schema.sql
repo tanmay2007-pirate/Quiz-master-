@@ -261,6 +261,106 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+-- RPC: Grade an attempt without exposing answer keys to students
+CREATE OR REPLACE FUNCTION public.grade_exam_attempt(
+  p_attempt_id UUID,
+  p_answers JSONB
+)
+RETURNS TABLE (
+  status TEXT,
+  score NUMERIC(5,2),
+  has_pending BOOLEAN
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  attempt_record public.attempts;
+  question_record public.questions;
+  answer_record JSONB;
+  submitted_answer JSONB;
+  awarded NUMERIC(5,2);
+  correct BOOLEAN;
+  total_score NUMERIC(5,2) := 0;
+  pending BOOLEAN := false;
+  final_status TEXT;
+BEGIN
+  SELECT * INTO attempt_record
+  FROM public.attempts
+  WHERE id = p_attempt_id
+    AND student_id = auth.uid();
+
+  IF attempt_record.id IS NULL THEN
+    RAISE EXCEPTION 'Attempt not found or access denied.';
+  END IF;
+
+  IF attempt_record.status IN ('submitted', 'graded') THEN
+    RAISE EXCEPTION 'This attempt has already been submitted.';
+  END IF;
+
+  FOR question_record IN
+    SELECT q.*
+    FROM public.questions q
+    WHERE q.exam_id = attempt_record.exam_id
+    ORDER BY q.position
+  LOOP
+    answer_record := COALESCE(
+      (SELECT value FROM jsonb_array_elements(p_answers) value
+       WHERE value->>'question_id' = question_record.id::text
+       LIMIT 1),
+      '{}'::jsonb
+    );
+    submitted_answer := answer_record->'answer';
+    awarded := 0;
+    correct := false;
+
+    IF question_record.type = 'descriptive' THEN
+      pending := true;
+      correct := NULL;
+    ELSIF submitted_answer IS NOT NULL AND submitted_answer <> 'null'::jsonb
+      AND BTRIM(TRIM(BOTH '"' FROM submitted_answer::text)) <> '' THEN
+      IF question_record.type = 'true_false' THEN
+        correct := LOWER(TRIM(BOTH '"' FROM submitted_answer::text))
+          = LOWER(TRIM(BOTH '"' FROM question_record.answer_key::text));
+      ELSIF question_record.type = 'short_answer' THEN
+        correct := LOWER(BTRIM(TRIM(BOTH '"' FROM submitted_answer::text)))
+          = LOWER(BTRIM(TRIM(BOTH '"' FROM question_record.answer_key::text)));
+      ELSE
+        correct := submitted_answer = question_record.answer_key;
+      END IF;
+      IF correct THEN
+        awarded := question_record.marks;
+        total_score := total_score + awarded;
+      END IF;
+    END IF;
+
+    INSERT INTO public.answers (
+      attempt_id, question_id, answer, awarded_marks, is_correct, feedback
+    )
+    VALUES (
+      p_attempt_id, question_record.id, submitted_answer, awarded, correct, NULL
+    )
+    ON CONFLICT (attempt_id, question_id) DO UPDATE SET
+      answer = EXCLUDED.answer,
+      awarded_marks = EXCLUDED.awarded_marks,
+      is_correct = EXCLUDED.is_correct,
+      feedback = NULL,
+      graded_by = NULL;
+  END LOOP;
+
+  final_status := CASE WHEN pending THEN 'submitted' ELSE 'graded' END;
+  UPDATE public.attempts
+  SET status = final_status,
+      score = total_score,
+      submitted_at = NOW(),
+      graded_at = CASE WHEN pending THEN NULL ELSE NOW() END
+  WHERE id = p_attempt_id;
+
+  RETURN QUERY SELECT final_status, total_score, pending;
+END;
+$$;
+
 -- =====================================================================
 -- 6. ANSWER KEY SECURITY DESIGN
 -- =====================================================================
