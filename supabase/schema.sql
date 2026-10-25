@@ -190,7 +190,7 @@ CREATE OR REPLACE FUNCTION public.get_student_exam_questions(p_exam_id UUID)
 RETURNS TABLE (
   id UUID,
   exam_id UUID,
-  position INT,
+  "position" INT,
   type TEXT,
   prompt TEXT,
   marks INT,
@@ -220,7 +220,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 CREATE OR REPLACE FUNCTION public.get_student_exam_review(p_attempt_id UUID)
 RETURNS TABLE (
   question_id UUID,
-  position INT,
+  "position" INT,
   type TEXT,
   prompt TEXT,
   marks INT,
@@ -511,4 +511,3 @@ USING (
 --   WHERE id = (SELECT id FROM auth.users WHERE email = 'teacher@example.com');
 --
 -- =====================================================================
-
